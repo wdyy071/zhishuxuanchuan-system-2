@@ -1,13 +1,12 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Share2, Search, Zap, 
-  Settings, TrendingUp, DollarSign, Award
+  ArrowLeft, Share2, Settings, Zap, Award, ChevronDown
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceDot, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { MOCK_COMPETITORS, MOCK_NEWS, generateChartData, MOCK_HOTSPOTS } from '../constants';
-import { CompetitorData } from '../types';
+import { AreaChart, Area, Line, XAxis, YAxis, Tooltip, ReferenceDot, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { MOCK_COMPETITORS, MOCK_NEWS, generateChartData, generateHistoricalData, MOCK_HOTSPOTS } from '../constants';
 import Toast from '../components/Toast';
 
 const Analysis: React.FC = () => {
@@ -17,6 +16,7 @@ const Analysis: React.FC = () => {
   const [showCompetitor, setShowCompetitor] = useState(false);
   const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState('实时');
 
   // Find the specific hotspot event based on ID from URL
   const currentHotspot = MOCK_HOTSPOTS.find(h => h.id === id);
@@ -33,8 +33,12 @@ const Analysis: React.FC = () => {
   };
 
   useEffect(() => {
-    setChartData(generateChartData());
-  }, [id]);
+    if (timeRange === '实时') {
+      setChartData(generateChartData());
+    } else {
+      setChartData(generateHistoricalData(timeRange));
+    }
+  }, [id, timeRange]);
 
   const handleCompetitorToggle = (code: string) => {
     if (selectedCompetitor === code && showCompetitor) {
@@ -50,7 +54,80 @@ const Analysis: React.FC = () => {
     navigate('/config-detail');
   };
 
-  const triggerPoint = chartData.find(p => p.isTrigger);
+  // Derived data for display (Intraday)
+  const latestData = timeRange === '实时' ? (chartData[chartData.length - 1] || {}) : {};
+  const preClose = timeRange === '实时' ? (chartData[0]?.value || 1.0) : 0;
+  const currentPrice = timeRange === '实时' ? (latestData.value || 0) : 0;
+  const currentIOPV = timeRange === '实时' ? (latestData.competitorValue || 0) : 0; 
+  
+  // Calculate changes (Intraday)
+  const priceChange = currentPrice - preClose;
+  const priceChangePct = preClose !== 0 ? (priceChange / preClose) * 100 : 0;
+  
+  const triggerPoint = timeRange === '实时' ? chartData.find(p => p.isTrigger) : null;
+
+  // Calculate synchronized domain for Dual Y-Axis (Intraday)
+  const allValues = timeRange === '实时' ? chartData.map(d => d.value) : [];
+  const minVal = allValues.length > 0 ? Math.min(...allValues) : 0;
+  const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
+  const range = maxVal - minVal || minVal * 0.02; 
+  const yDomain: [number, number] = [minVal - range * 0.1, maxVal + range * 0.1];
+
+  // Tooltip for Real-time Chart
+  const IntradayTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const price = data.value;
+      const change = price - preClose;
+      const changePct = preClose !== 0 ? (change / preClose) * 100 : 0;
+      const vol = data.volume || 0;
+
+      return (
+        <div className="bg-white p-3 border border-slate-200 shadow-lg rounded-lg text-xs z-50">
+          <div className="text-slate-500 mb-2 font-mono flex items-center justify-between gap-4">
+             <span>{label}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <span className="text-slate-600">价格:</span>
+            <span className="font-mono font-bold text-slate-800 text-right">{price.toFixed(3)}</span>
+            
+            <span className="text-slate-600">涨跌:</span>
+            <span className={`font-mono font-bold text-right ${change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+              {change > 0 ? '+' : ''}{change.toFixed(3)}
+            </span>
+            
+            <span className="text-slate-600">涨跌幅:</span>
+            <span className={`font-mono font-bold text-right ${changePct >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+              {changePct > 0 ? '+' : ''}{changePct.toFixed(2)}%
+            </span>
+            
+            <span className="text-slate-600">成交量:</span>
+            <span className="font-mono font-bold text-slate-800 text-right">{vol}万</span>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Tooltip for Historical Chart
+  const HistoricalTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-2 border border-slate-200 shadow-md rounded text-xs">
+          <div className="font-mono text-slate-500 mb-1">{data.date}</div>
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-600">累计收益率:</span>
+            <span className={`font-bold font-mono ${data.value >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+              {data.value >= 0 ? '+' : ''}{data.value.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -64,7 +141,7 @@ const Analysis: React.FC = () => {
           </button>
           <div>
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-              {displayData.name} <span className="text-sm font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{displayData.code}</span>
+              {displayData.name} <span className="text-sm font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded font-mono">{displayData.code}</span>
             </h1>
             <div className="text-xs text-red-500 flex items-center gap-1 mt-1">
               <Zap className="w-3 h-3" />
@@ -94,92 +171,222 @@ const Analysis: React.FC = () => {
         {/* Left Column: Chart & Attribution (8/12) */}
         <div className="col-span-12 lg:col-span-8 space-y-6">
           
-          {/* Chart Section */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm relative">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-slate-700">盘中实时走势</h2>
-              {showCompetitor && (
-                <div className="flex items-center gap-4 text-xs">
-                   <div className="flex items-center gap-1">
-                      <span className="w-3 h-1 bg-brand"></span>
-                      <span>本基金</span>
-                   </div>
-                   <div className="flex items-center gap-1">
-                      <span className="w-3 h-1 bg-slate-400"></span>
-                      <span>竞品对标</span>
-                   </div>
+          <div>
+            {/* Chart Section - Redesigned */}
+            <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+              {/* 1. Header Metrics (Only for Real-time mode) */}
+              {timeRange === '实时' && (
+                <div className="px-6 pt-6 pb-2">
+                  <h2 className="text-base font-bold text-slate-700 mb-4">业绩走势</h2>
+                  <div className="flex items-start gap-12">
+                    {/* Price Metric */}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                          <span className="w-3 h-1 bg-[#0e57b4] rounded-full"></span>
+                          <span className="text-xs font-bold text-slate-600">价格</span>
+                          <span className={`text-sm font-bold ml-1 ${priceChange >= 0 ? 'text-[#d9001b]' : 'text-green-500'}`}>
+                            {priceChange > 0 ? '+' : ''}{priceChangePct.toFixed(2)}%
+                          </span>
+                      </div>
+                      <div className="font-mono text-2xl font-bold text-slate-800 tracking-tight">
+                        {currentPrice.toFixed(3)}
+                      </div>
+                    </div>
+                    
+                    {/* IOPV Metric */}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                          <span className="w-3 h-1 bg-[#fbbf24] rounded-full"></span>
+                          <span className="text-xs font-bold text-slate-600 flex items-center">
+                            IOPV
+                            <span className="ml-1 w-3 h-3 rounded-full border border-slate-300 text-[8px] flex items-center justify-center text-slate-400">i</span>
+                          </span>
+                      </div>
+                      <div className="font-mono text-2xl font-medium text-slate-500 tracking-tight">
+                        {currentIOPV.toFixed(3)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
-            
-            <div className="h-[400px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="time" minTickGap={30} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                  <YAxis domain={['auto', 'auto']} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#0e57b4" 
-                    strokeWidth={2} 
-                    dot={false} 
-                  />
-                  {showCompetitor && (
-                    <Line 
-                      type="monotone" 
-                      dataKey="competitorValue" 
-                      stroke="#94a3b8" 
-                      strokeWidth={1.5} 
-                      dot={false} 
-                      strokeDasharray="5 5" 
-                    />
-                  )}
-                  {/* Trigger Point (Mocked at 10:42 for visual, ideally would match hotspot time) */}
-                  {!showCompetitor && triggerPoint && (
-                     <ReferenceDot 
-                       x={triggerPoint.time} 
-                       y={triggerPoint.value} 
-                       r={6} 
-                       fill="#ef4444" 
-                       stroke="white" 
-                       strokeWidth={2}
-                     />
-                  )}
-                  {!showCompetitor && triggerPoint && (
-                     <ReferenceLine x={triggerPoint.time} stroke="#ef4444" strokeDasharray="3 3" />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
               
-              {!showCompetitor && triggerPoint && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 bg-white p-3 rounded-lg shadow-lg border border-red-100 animate-in fade-in zoom-in duration-300">
-                  <div className="text-xs text-slate-500 mb-1">{displayData.time} 触发异动</div>
-                  <div className="text-red-600 font-bold text-sm">{displayData.triggerReason} {displayData.metricValue}</div>
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45 border-b border-r border-red-100"></div>
+              {/* Header for Historical */}
+              {timeRange !== '实时' && (
+                <div className="px-6 pt-6 pb-2">
+                  <h2 className="text-base font-bold text-slate-700 mb-1">业绩走势</h2>
+                  <div className="text-xs text-slate-400">累计涨跌幅(%)</div>
                 </div>
               )}
-            </div>
 
-            {/* Competitor Selector */}
-            <div className="mt-6 flex gap-3 overflow-x-auto pb-2">
-              {MOCK_COMPETITORS.filter(c => !c.isLeader).map(comp => (
-                <button
-                  key={comp.code}
-                  onClick={() => handleCompetitorToggle(comp.code)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm whitespace-nowrap transition-all ${
-                    selectedCompetitor === comp.code 
-                      ? 'bg-slate-800 text-white border-slate-800' 
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                  }`}
-                >
-                  <span>VS</span>
-                  <span>{comp.name}</span>
-                </button>
-              ))}
+              {/* 2. Chart Area */}
+              <div className="h-[360px] w-full px-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  {timeRange === '实时' ? (
+                    // INTRADAY REAL-TIME CHART
+                    <AreaChart data={chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#0e57b4" stopOpacity={0.15}/>
+                          <stop offset="95%" stopColor="#0e57b4" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      
+                      <XAxis 
+                        dataKey="time" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fontSize: 11, fill: '#94a3b8'}}
+                        ticks={['09:30', '11:30', '15:00']}
+                        interval={0}
+                        tickFormatter={(val) => {
+                          if (val === '11:30') return '11:30/13:00';
+                          return val;
+                        }}
+                      />
+                      
+                      <YAxis 
+                        yAxisId="left"
+                        domain={yDomain} 
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{fontSize: 11, fill: '#94a3b8'}}
+                        tickFormatter={(val) => val.toFixed(3)}
+                        width={50}
+                      />
+
+                      <YAxis 
+                        yAxisId="right"
+                        orientation="right"
+                        domain={yDomain}
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{fontSize: 11, fill: '#94a3b8'}}
+                        tickFormatter={(val) => {
+                          const pct = ((val - preClose) / preClose) * 100;
+                          return `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`;
+                        }}
+                        width={50}
+                      />
+                      
+                      <Tooltip content={<IntradayTooltip />} />
+                      
+                      <Area 
+                        yAxisId="left"
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke="#0e57b4" 
+                        strokeWidth={2}
+                        fillOpacity={1} 
+                        fill="url(#colorPrice)" 
+                        name="价格"
+                      />
+                      
+                      <Line 
+                        yAxisId="left" 
+                        type="monotone" 
+                        dataKey="competitorValue" 
+                        stroke="#fbbf24" 
+                        strokeWidth={1.5} 
+                        dot={false}
+                        name="IOPV"
+                      />
+
+                      <Line 
+                        yAxisId="right" 
+                        dataKey="value" 
+                        stroke="none" 
+                        dot={false} 
+                        activeDot={false} 
+                        isAnimationActive={false} 
+                      />
+
+                      {triggerPoint && (
+                        <ReferenceDot 
+                          yAxisId="left"
+                          x={triggerPoint.time} 
+                          y={triggerPoint.value} 
+                          r={5} 
+                          fill="#ef4444" 
+                          stroke="white" 
+                          strokeWidth={2}
+                        />
+                      )}
+                      {triggerPoint && (
+                        <ReferenceLine yAxisId="left" x={triggerPoint.time} stroke="#ef4444" strokeDasharray="3 3" />
+                      )}
+                    </AreaChart>
+                  ) : (
+                    // HISTORICAL TREND CHART
+                    <AreaChart data={chartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorHist" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#e0f1ff" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#e0f1ff" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{fontSize: 11, fill: '#94a3b8'}}
+                        ticks={chartData.length > 0 ? [chartData[0].date, chartData[chartData.length - 1].date] : []}
+                        interval={0}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false}
+                        tick={{fontSize: 11, fill: '#94a3b8'}}
+                        tickFormatter={(val) => `${val.toFixed(2)}%`}
+                        width={50}
+                      />
+                      <Tooltip content={<HistoricalTooltip />} />
+                      <Area 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke="#f59e0b" // Orange stroke
+                        strokeWidth={2}
+                        fill="url(#colorHist)" 
+                      />
+                    </AreaChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
+
+              {/* 3. Bottom Tabs */}
+              <div className="flex border-t border-slate-100 mt-2">
+                {['实时', '近1月', '近3月', '近6月', '更多'].map(t => (
+                    <button 
+                      key={t}
+                      onClick={() => setTimeRange(t)}
+                      className={`flex-1 py-3 text-sm font-medium transition-colors relative flex items-center justify-center gap-1
+                        ${timeRange === t ? 'text-[#0e57b4] bg-brand-light/30' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+                    >
+                      {t}
+                      {t === '更多' && <ChevronDown className="w-3 h-3" />}
+                      {timeRange === t && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#0e57b4]"></div>}
+                    </button>
+                ))}
+              </div>
             </div>
+          </div>
+
+          {/* Competitor Selector (Moved outside chart card) */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-slate-600">添加对比:</span>
+            {MOCK_COMPETITORS.filter(c => !c.isLeader).map(comp => (
+              <button
+                key={comp.code}
+                onClick={() => handleCompetitorToggle(comp.code)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all ${
+                  selectedCompetitor === comp.code 
+                    ? 'bg-slate-800 text-white border-slate-800' 
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                }`}
+              >
+                <span>VS</span>
+                <span>{comp.name}</span>
+              </button>
+            ))}
           </div>
 
           {/* News Feed */}
@@ -227,11 +434,11 @@ const Analysis: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    <ComparisonRow label="最新价" value="0.892" compValue="0.910" prefix="¥" />
+                    <ComparisonRow label="最新价" value={currentPrice.toFixed(3)} compValue={(currentPrice * 1.02).toFixed(3)} prefix="¥" />
                     <ComparisonRow label="成交额" value={displayData.metricValue.includes('亿') ? displayData.metricValue : '10.5亿'} compValue="6.2亿" isWin />
                     <ComparisonRow label="溢折率" value="0.12%" compValue="0.04%" isWin />
                     <ComparisonRow label="资金净流入" value="+1.2亿" compValue="+0.4亿" isWin />
-                    <ComparisonRow label="盘中涨幅" value="+3.5%" compValue="+3.1%" isWin />
+                    <ComparisonRow label="盘中涨幅" value={priceChangePct > 0 ? `+${priceChangePct.toFixed(2)}%` : `${priceChangePct.toFixed(2)}%`} compValue="+3.1%" isWin />
                   </tbody>
                 </table>
              </div>

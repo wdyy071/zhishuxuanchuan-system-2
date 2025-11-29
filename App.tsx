@@ -12,7 +12,7 @@ const App: React.FC = () => {
     <Router>
       <div className="min-h-screen bg-[#f8fbff] text-slate-800 flex font-sans">
         <Sidebar />
-        <main className="flex-1 ml-64 p-8 overflow-x-hidden">
+        <main className="flex-1 ml-48 p-8 overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
             <Routes>
               <Route path="/" element={<Dashboard />} />

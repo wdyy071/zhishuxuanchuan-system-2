@@ -1,4 +1,5 @@
 
+
 import { HotspotEvent, HotspotStatus, MarketIndex, NewsItem, CompetitorData, ChartPoint, PanoramaData } from './types';
 
 export const MOCK_INDICES: MarketIndex[] = [
@@ -274,25 +275,80 @@ export const MOCK_COMPETITORS: CompetitorData[] = [
 
 export const generateChartData = (): ChartPoint[] => {
   const points: ChartPoint[] = [];
-  let value = 100;
-  let compValue = 98;
-  for (let i = 0; i < 240; i++) { // 4 hours * 60 mins
-    value = value * (1 + (Math.random() - 0.45) * 0.005);
-    compValue = compValue * (1 + (Math.random() - 0.45) * 0.005);
+  let value = 1.338; 
+  let compValue = 1.335;
+  
+  // Morning Session: 09:30 - 11:30
+  // 121 points (inclusive of start and end minute)
+  for (let i = 0; i <= 120; i++) {
+    const d = new Date();
+    d.setHours(9, 30 + i, 0, 0);
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    const timeStr = `${h}:${m}`;
     
-    const hour = 9 + Math.floor(i / 60);
-    const min = i % 60;
-    const timeStr = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-    
-    // Skip lunch break roughly
-    if (hour === 11 && min > 30) continue;
-    if (hour === 12) continue;
+    // Random walk
+    value = value * (1 + (Math.random() - 0.45) * 0.003);
+    compValue = compValue * (1 + (Math.random() - 0.45) * 0.003);
+    const volume = Math.floor(Math.random() * 5000) + 500;
 
     points.push({
       time: timeStr,
-      value: Number(value.toFixed(2)),
-      competitorValue: Number(compValue.toFixed(2)),
-      isTrigger: timeStr === '10:42' // Mock trigger point
+      value: Number(value.toFixed(3)),
+      competitorValue: Number(compValue.toFixed(3)),
+      isTrigger: timeStr === '10:42',
+      volume
+    });
+  }
+
+  // Afternoon Session: 13:00 - 15:00
+  for (let i = 0; i <= 120; i++) {
+    const d = new Date();
+    d.setHours(13, i, 0, 0);
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    const timeStr = `${h}:${m}`;
+    
+    value = value * (1 + (Math.random() - 0.45) * 0.003);
+    compValue = compValue * (1 + (Math.random() - 0.45) * 0.003);
+    const volume = Math.floor(Math.random() * 5000) + 500;
+
+    points.push({
+      time: timeStr,
+      value: Number(value.toFixed(3)),
+      competitorValue: Number(compValue.toFixed(3)),
+      isTrigger: false,
+      volume
+    });
+  }
+  
+  return points;
+};
+
+// Generate Historical Data (Daily Cumulative %)
+export const generateHistoricalData = (range: string): { date: string; value: number }[] => {
+  const points: { date: string; value: number }[] = [];
+  let days = 30; // Default 1M
+  if (range === '近3月') days = 90;
+  if (range === '近6月') days = 180;
+  if (range === '更多') days = 365;
+
+  let value = 0; // Cumulative percent starts at 0
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - days);
+
+  for (let i = 0; i <= days; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Random walk for cumulative percentage
+    value = value + (Math.random() - 0.45) * 1.5; 
+
+    points.push({
+      date: dateStr,
+      value: Number(value.toFixed(2))
     });
   }
   return points;

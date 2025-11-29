@@ -89,4 +89,5 @@ export interface ChartPoint {
   value: number;
   competitorValue?: number;
   isTrigger?: boolean;
+  volume: number;
 }
