@@ -68,10 +68,18 @@ const Analysis: React.FC = () => {
 
   // Calculate synchronized domain for Dual Y-Axis (Intraday)
   const allValues = timeRange === '实时' ? chartData.map(d => d.value) : [];
+  // Include competitor value in domain calculation if shown
+  if (timeRange === '实时' && showCompetitor) {
+    chartData.forEach(d => allValues.push(d.competitorValue));
+  }
+  
   const minVal = allValues.length > 0 ? Math.min(...allValues) : 0;
   const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
   const range = maxVal - minVal || minVal * 0.02; 
   const yDomain: [number, number] = [minVal - range * 0.1, maxVal + range * 0.1];
+
+  // Get selected competitor name
+  const selectedCompetitorName = MOCK_COMPETITORS.find(c => c.code === selectedCompetitor)?.name || '竞品';
 
   // Tooltip for Real-time Chart
   const IntradayTooltip = ({ active, payload, label }: any) => {
@@ -81,15 +89,23 @@ const Analysis: React.FC = () => {
       const change = price - preClose;
       const changePct = preClose !== 0 ? (change / preClose) * 100 : 0;
       const vol = data.volume || 0;
+      
+      const secondaryLabel = showCompetitor ? selectedCompetitorName : 'IOPV';
+      const secondaryValue = data.competitorValue;
 
       return (
-        <div className="bg-white p-3 border border-slate-200 shadow-lg rounded-lg text-xs z-50">
+        <div className="bg-white p-3 border border-slate-200 shadow-lg rounded-lg text-xs z-50 min-w-[180px]">
           <div className="text-slate-500 mb-2 font-mono flex items-center justify-between gap-4">
              <span>{label}</span>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <span className="text-slate-600">价格:</span>
+            <span className="text-slate-600">我司价格:</span>
             <span className="font-mono font-bold text-slate-800 text-right">{price.toFixed(3)}</span>
+            
+            <span className="text-slate-600">{secondaryLabel}:</span>
+            <span className="font-mono font-medium text-slate-500 text-right">{secondaryValue.toFixed(3)}</span>
+
+            <div className="col-span-2 h-[1px] bg-slate-100 my-1"></div>
             
             <span className="text-slate-600">涨跌:</span>
             <span className={`font-mono font-bold text-right ${change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
@@ -193,13 +209,15 @@ const Analysis: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* IOPV Metric */}
+                    {/* Secondary Metric: IOPV or Competitor */}
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                          <span className="w-3 h-1 bg-[#fbbf24] rounded-full"></span>
+                          <span className={`w-3 h-1 rounded-full ${showCompetitor ? 'bg-slate-400' : 'bg-[#fbbf24]'}`}></span>
                           <span className="text-xs font-bold text-slate-600 flex items-center">
-                            IOPV
-                            <span className="ml-1 w-3 h-3 rounded-full border border-slate-300 text-[8px] flex items-center justify-center text-slate-400">i</span>
+                            {showCompetitor ? '竞品' : 'IOPV'}
+                            {!showCompetitor && (
+                              <span className="ml-1 w-3 h-3 rounded-full border border-slate-300 text-[8px] flex items-center justify-center text-slate-400">i</span>
+                            )}
                           </span>
                       </div>
                       <div className="font-mono text-2xl font-medium text-slate-500 tracking-tight">
@@ -270,27 +288,56 @@ const Analysis: React.FC = () => {
                       
                       <Tooltip content={<IntradayTooltip />} />
                       
-                      <Area 
-                        yAxisId="left"
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#0e57b4" 
-                        strokeWidth={2}
-                        fillOpacity={1} 
-                        fill="url(#colorPrice)" 
-                        name="价格"
-                      />
+                      {/* Self Product: Area (Normal) OR Thick Line (Comparison) */}
+                      {showCompetitor ? (
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#0e57b4"
+                          strokeWidth={3}
+                          dot={false}
+                          activeDot={{ r: 4 }}
+                          name="我司产品"
+                          isAnimationActive={true}
+                        />
+                      ) : (
+                        <Area 
+                          yAxisId="left"
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="#0e57b4" 
+                          strokeWidth={2}
+                          fillOpacity={1} 
+                          fill="url(#colorPrice)" 
+                          name="价格"
+                        />
+                      )}
                       
-                      <Line 
-                        yAxisId="left" 
-                        type="monotone" 
-                        dataKey="competitorValue" 
-                        stroke="#fbbf24" 
-                        strokeWidth={1.5} 
-                        dot={false}
-                        name="IOPV"
-                      />
+                      {/* Secondary: Competitor (Thin Gray) OR IOPV (Yellow) */}
+                      {showCompetitor ? (
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="competitorValue" // Using mock competitor value
+                          stroke="#94a3b8" // Slate-400 Gray
+                          strokeWidth={1}
+                          dot={false}
+                          name={selectedCompetitorName}
+                        />
+                      ) : (
+                        <Line 
+                          yAxisId="left" 
+                          type="monotone" 
+                          dataKey="competitorValue" 
+                          stroke="#fbbf24" 
+                          strokeWidth={1.5} 
+                          dot={false}
+                          name="IOPV"
+                        />
+                      )}
 
+                      {/* Invisible line for Right Axis Scaling */}
                       <Line 
                         yAxisId="right" 
                         dataKey="value" 
@@ -300,7 +347,8 @@ const Analysis: React.FC = () => {
                         isAnimationActive={false} 
                       />
 
-                      {triggerPoint && (
+                      {/* Trigger Dot: Only show if NOT in comparison mode */}
+                      {!showCompetitor && triggerPoint && (
                         <ReferenceDot 
                           yAxisId="left"
                           x={triggerPoint.time} 
@@ -311,7 +359,7 @@ const Analysis: React.FC = () => {
                           strokeWidth={2}
                         />
                       )}
-                      {triggerPoint && (
+                      {!showCompetitor && triggerPoint && (
                         <ReferenceLine yAxisId="left" x={triggerPoint.time} stroke="#ef4444" strokeDasharray="3 3" />
                       )}
                     </AreaChart>
@@ -379,7 +427,7 @@ const Analysis: React.FC = () => {
                 onClick={() => handleCompetitorToggle(comp.code)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all ${
                   selectedCompetitor === comp.code 
-                    ? 'bg-slate-800 text-white border-slate-800' 
+                    ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
                     : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                 }`}
               >
