@@ -43,7 +43,7 @@ const ConfigCenter: React.FC = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">涨幅触发</span>
-                <span className="font-mono font-medium">>3.5%</span>
+                <span className="font-mono font-medium">&gt;3.5%</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">关联竞品</span>
