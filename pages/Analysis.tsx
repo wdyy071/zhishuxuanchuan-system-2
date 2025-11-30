@@ -3,20 +3,22 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Share2, Settings, Zap, Award, ChevronDown
+  ArrowLeft, Share2, Settings, Zap, Award, ChevronDown, MoreHorizontal
 } from 'lucide-react';
 import { AreaChart, Area, Line, XAxis, YAxis, Tooltip, ReferenceDot, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { MOCK_COMPETITORS, MOCK_NEWS, generateChartData, generateHistoricalData, MOCK_HOTSPOTS } from '../constants';
+import { MOCK_COMPETITORS, getNewsForProduct, generateChartData, generateHistoricalData, MOCK_HOTSPOTS } from '../constants';
 import Toast from '../components/Toast';
 
 const Analysis: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [chartData, setChartData] = useState<any[]>([]);
-  const [showCompetitor, setShowCompetitor] = useState(false);
-  const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
+  // Use array for multiple competitors
+  const [selectedCompetitors, setSelectedCompetitors] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState('实时');
+
+  const showCompetitor = selectedCompetitors.length > 0;
 
   // Find the specific hotspot event based on ID from URL
   const currentHotspot = MOCK_HOTSPOTS.find(h => h.id === id);
@@ -32,6 +34,9 @@ const Analysis: React.FC = () => {
     description: '行业利好消息刺激，早盘资金大幅涌入，成交额创近30日新高。'
   };
 
+  // Get dynamic news based on product code
+  const { news: newsList, announcements: announcementList } = getNewsForProduct(displayData.code);
+
   useEffect(() => {
     if (timeRange === '实时') {
       setChartData(generateChartData());
@@ -40,14 +45,18 @@ const Analysis: React.FC = () => {
     }
   }, [id, timeRange]);
 
+  const handleBack = () => {
+    navigate(-1);
+  };
+
   const handleCompetitorToggle = (code: string) => {
-    if (selectedCompetitor === code && showCompetitor) {
-      setShowCompetitor(false);
-      setSelectedCompetitor(null);
-    } else {
-      setSelectedCompetitor(code);
-      setShowCompetitor(true);
-    }
+    setSelectedCompetitors(prev => {
+      if (prev.includes(code)) {
+        return prev.filter(c => c !== code);
+      } else {
+        return [...prev, code];
+      }
+    });
   };
 
   const handleConfigClick = () => {
@@ -58,7 +67,7 @@ const Analysis: React.FC = () => {
   const latestData = timeRange === '实时' ? (chartData[chartData.length - 1] || {}) : {};
   const preClose = timeRange === '实时' ? (chartData[0]?.value || 1.0) : 0;
   const currentPrice = timeRange === '实时' ? (latestData.value || 0) : 0;
-  const currentIOPV = timeRange === '实时' ? (latestData.competitorValue || 0) : 0; 
+  const currentIOPV = timeRange === '实时' ? (latestData.iopv || 0) : 0; 
   
   // Calculate changes (Intraday)
   const priceChange = currentPrice - preClose;
@@ -66,20 +75,32 @@ const Analysis: React.FC = () => {
   
   const triggerPoint = timeRange === '实时' ? chartData.find(p => p.isTrigger) : null;
 
-  // Calculate synchronized domain for Dual Y-Axis (Intraday)
-  const allValues = timeRange === '实时' ? chartData.map(d => d.value) : [];
-  // Include competitor value in domain calculation if shown
-  if (timeRange === '实时' && showCompetitor) {
-    chartData.forEach(d => allValues.push(d.competitorValue));
-  }
+  // Calculate synchronized domain for Dual Y-Axis (Intraday & Historical)
+  const allValues: number[] = [];
+  chartData.forEach(d => {
+      // Always add self value
+      if (typeof d.value === 'number') allValues.push(d.value);
+      
+      // Add competitor values if selected
+      if (showCompetitor && d.competitors) {
+          selectedCompetitors.forEach(code => {
+             if (typeof d.competitors[code] === 'number') allValues.push(d.competitors[code]);
+          });
+      }
+      
+      // Only for Real-time default mode, include IOPV
+      if (timeRange === '实时' && !showCompetitor && typeof d.iopv === 'number') {
+          allValues.push(d.iopv);
+      }
+  });
   
   const minVal = allValues.length > 0 ? Math.min(...allValues) : 0;
   const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
   const range = maxVal - minVal || minVal * 0.02; 
   const yDomain: [number, number] = [minVal - range * 0.1, maxVal + range * 0.1];
 
-  // Get selected competitor name
-  const selectedCompetitorName = MOCK_COMPETITORS.find(c => c.code === selectedCompetitor)?.name || '竞品';
+  // Helper to get competitor mock data by code
+  const getCompData = (code: string) => MOCK_COMPETITORS.find(c => c.code === code);
 
   // Tooltip for Real-time Chart
   const IntradayTooltip = ({ active, payload, label }: any) => {
@@ -90,11 +111,8 @@ const Analysis: React.FC = () => {
       const changePct = preClose !== 0 ? (change / preClose) * 100 : 0;
       const vol = data.volume || 0;
       
-      const secondaryLabel = showCompetitor ? selectedCompetitorName : 'IOPV';
-      const secondaryValue = data.competitorValue;
-
       return (
-        <div className="bg-white p-3 border border-slate-200 shadow-lg rounded-lg text-xs z-50 min-w-[180px]">
+        <div className="bg-white p-3 border border-slate-200 shadow-lg rounded-lg text-xs z-50 min-w-[200px]">
           <div className="text-slate-500 mb-2 font-mono flex items-center justify-between gap-4">
              <span>{label}</span>
           </div>
@@ -102,8 +120,24 @@ const Analysis: React.FC = () => {
             <span className="text-slate-600">我司价格:</span>
             <span className="font-mono font-bold text-slate-800 text-right">{price.toFixed(3)}</span>
             
-            <span className="text-slate-600">{secondaryLabel}:</span>
-            <span className="font-mono font-medium text-slate-500 text-right">{secondaryValue.toFixed(3)}</span>
+            {!showCompetitor && (
+              <>
+                <span className="text-slate-600">IOPV:</span>
+                <span className="font-mono font-medium text-slate-500 text-right">{data.iopv?.toFixed(3)}</span>
+              </>
+            )}
+
+            {/* Competitors List */}
+            {showCompetitor && selectedCompetitors.map(code => {
+              const compName = MOCK_COMPETITORS.find(c => c.code === code)?.name || code;
+              const val = data.competitors?.[code] || 0;
+              return (
+                <React.Fragment key={code}>
+                   <span className="text-slate-500 truncate" title={compName}>{compName}:</span>
+                   <span className="font-mono font-medium text-slate-500 text-right">{val.toFixed(3)}</span>
+                </React.Fragment>
+              );
+            })}
 
             <div className="col-span-2 h-[1px] bg-slate-100 my-1"></div>
             
@@ -131,14 +165,30 @@ const Analysis: React.FC = () => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-2 border border-slate-200 shadow-md rounded text-xs">
-          <div className="font-mono text-slate-500 mb-1">{data.date}</div>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-600">累计收益率:</span>
-            <span className={`font-bold font-mono ${data.value >= 0 ? 'text-red-500' : 'text-green-500'}`}>
-              {data.value >= 0 ? '+' : ''}{data.value.toFixed(2)}%
-            </span>
+        <div className="bg-white p-3 border border-slate-200 shadow-md rounded text-xs min-w-[150px]">
+          <div className="font-mono text-slate-500 mb-2">{data.date}</div>
+          
+          {/* Self */}
+          <div className="flex justify-between gap-4 mb-1">
+             <span className="text-slate-600 font-bold">我司产品:</span>
+             <span className={`font-bold font-mono ${data.value >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+               {data.value >= 0 ? '+' : ''}{data.value.toFixed(2)}%
+             </span>
           </div>
+
+          {/* Competitors */}
+          {showCompetitor && selectedCompetitors.map(code => {
+              const val = data.competitors?.[code] || 0;
+              const name = MOCK_COMPETITORS.find(c => c.code === code)?.name || code;
+              return (
+                <div key={code} className="flex justify-between gap-4">
+                  <span className="text-slate-500 truncate max-w-[100px]">{name}:</span>
+                  <span className={`font-medium font-mono ${val >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                    {val >= 0 ? '+' : ''}{val.toFixed(2)}%
+                  </span>
+                </div>
+              );
+          })}
         </div>
       );
     }
@@ -152,7 +202,12 @@ const Analysis: React.FC = () => {
       {/* Top Toolbar */}
       <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+          <button 
+            onClick={handleBack} 
+            className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
+            title="返回上一页"
+            type="button"
+          >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -183,12 +238,13 @@ const Analysis: React.FC = () => {
         </div>
       </div>
 
+      {/* Top Section: Chart & Comparison */}
       <div className="grid grid-cols-12 gap-6">
-        {/* Left Column: Chart & Attribution (8/12) */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
+        {/* Left Column: Chart (7/12) */}
+        <div className="col-span-12 lg:col-span-7 space-y-6">
           
           <div>
-            {/* Chart Section - Redesigned */}
+            {/* Chart Section */}
             <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
               {/* 1. Header Metrics (Only for Real-time mode) */}
               {timeRange === '实时' && (
@@ -221,7 +277,7 @@ const Analysis: React.FC = () => {
                           </span>
                       </div>
                       <div className="font-mono text-2xl font-medium text-slate-500 tracking-tight">
-                        {currentIOPV.toFixed(3)}
+                        {!showCompetitor ? currentIOPV.toFixed(3) : (selectedCompetitors.length === 1 ? '...' : '...')} 
                       </div>
                     </div>
                   </div>
@@ -316,20 +372,24 @@ const Analysis: React.FC = () => {
                       
                       {/* Secondary: Competitor (Thin Gray) OR IOPV (Yellow) */}
                       {showCompetitor ? (
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="competitorValue" // Using mock competitor value
-                          stroke="#94a3b8" // Slate-400 Gray
-                          strokeWidth={1}
-                          dot={false}
-                          name={selectedCompetitorName}
-                        />
+                        selectedCompetitors.map(code => (
+                          <Line
+                            key={code}
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey={`competitors.${code}`}
+                            stroke="#94a3b8" // Slate-400 Gray
+                            strokeWidth={1}
+                            dot={false}
+                            name={MOCK_COMPETITORS.find(c => c.code === code)?.name}
+                            isAnimationActive={true}
+                          />
+                        ))
                       ) : (
                         <Line 
                           yAxisId="left" 
                           type="monotone" 
-                          dataKey="competitorValue" 
+                          dataKey="iopv" 
                           stroke="#fbbf24" 
                           strokeWidth={1.5} 
                           dot={false}
@@ -381,6 +441,7 @@ const Analysis: React.FC = () => {
                         interval={0}
                       />
                       <YAxis 
+                        domain={yDomain}
                         axisLine={false} 
                         tickLine={false}
                         tick={{fontSize: 11, fill: '#94a3b8'}}
@@ -388,13 +449,42 @@ const Analysis: React.FC = () => {
                         width={50}
                       />
                       <Tooltip content={<HistoricalTooltip />} />
-                      <Area 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#f59e0b" // Orange stroke
-                        strokeWidth={2}
-                        fill="url(#colorHist)" 
-                      />
+                      
+                      {/* Self Product */}
+                      {showCompetitor ? (
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#0e57b4"
+                          strokeWidth={3}
+                          dot={false}
+                          activeDot={{ r: 4 }}
+                          name="我司产品"
+                          isAnimationActive={true}
+                        />
+                      ) : (
+                        <Area 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="#f59e0b" // Orange stroke
+                          strokeWidth={2}
+                          fill="url(#colorHist)" 
+                        />
+                      )}
+
+                      {/* Competitors */}
+                      {showCompetitor && selectedCompetitors.map(code => (
+                        <Line
+                          key={code}
+                          type="monotone"
+                          dataKey={`competitors.${code}`}
+                          stroke="#94a3b8"
+                          strokeWidth={1}
+                          dot={false}
+                          name={MOCK_COMPETITORS.find(c => c.code === code)?.name}
+                          isAnimationActive={true}
+                        />
+                      ))}
                     </AreaChart>
                   )}
                 </ResponsiveContainer>
@@ -426,7 +516,7 @@ const Analysis: React.FC = () => {
                 key={comp.code}
                 onClick={() => handleCompetitorToggle(comp.code)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all ${
-                  selectedCompetitor === comp.code 
+                  selectedCompetitors.includes(comp.code)
                     ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
                     : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                 }`}
@@ -437,56 +527,147 @@ const Analysis: React.FC = () => {
             ))}
           </div>
 
-          {/* News Feed */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-             <div className="flex justify-between items-center mb-4">
-               <h2 className="text-lg font-bold text-slate-700">热点归因资讯</h2>
-               <div className="flex gap-2">
-                 <span className="text-xs bg-brand-light text-brand-dark px-2 py-1 rounded-full">#{displayData.name}</span>
-                 {['行业板块', '资金流向', '市场动态'].map(tag => (
-                   <span key={tag} className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full">#{tag}</span>
-                 ))}
-               </div>
-             </div>
-             
-             <div className="space-y-4">
-               {MOCK_NEWS.map(news => (
-                 <div key={news.id} className="group cursor-pointer">
-                   <div className="flex justify-between items-start mb-1">
-                     <h3 className="text-sm font-bold text-slate-800 group-hover:text-brand transition-colors line-clamp-1">{news.title}</h3>
-                     <span className="text-xs text-slate-400 whitespace-nowrap ml-4">{news.time}</span>
-                   </div>
-                   <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 mb-2">{news.summary}</p>
-                   <div className="flex items-center gap-4 text-xs text-slate-400">
-                     <span>{news.source}</span>
-                     <span>阅读 {news.views}</span>
-                   </div>
-                 </div>
-               ))}
-             </div>
-          </div>
         </div>
 
-        {/* Right Column: Comparison Table (4/12) */}
-        <div className="col-span-12 lg:col-span-4">
+        {/* Right Column: Comparison Table (5/12) */}
+        <div className="col-span-12 lg:col-span-5">
            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm h-full">
-             <h2 className="text-lg font-bold text-slate-700 mb-4">核心指标横向对比</h2>
+             <h2 className="text-lg font-bold text-slate-700 mb-4">横向对比</h2>
              
-             <div className="overflow-hidden rounded-lg border border-slate-200">
+             <div className="overflow-hidden rounded-lg border border-slate-200 overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">指标</th>
-                       <th className="px-4 py-3 text-right text-xs font-medium text-slate-500">我司产品</th>
-                       <th className="px-4 py-3 text-right text-xs font-medium text-slate-500">竞品均值</th>
+                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap sticky left-0 bg-slate-50 border-r border-slate-200 z-10">指标</th>
+                       <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap min-w-[100px]">
+                         <div className="flex items-center justify-end gap-1 text-[#0e57b4] font-bold">
+                           {displayData.name.replace('ETF', '')}
+                           <span className="text-[10px] bg-blue-100 px-1 rounded">我司</span>
+                         </div>
+                       </th>
+                       {selectedCompetitors.map(code => (
+                         <th key={code} className="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap min-w-[100px]">
+                           {getCompData(code)?.name?.replace('ETF', '').replace(/\(.*\)/, '') || code}
+                         </th>
+                       ))}
+                       {selectedCompetitors.length === 0 && (
+                          <th className="px-4 py-3 text-center text-xs text-slate-400 font-normal">
+                            (未选择竞品)
+                          </th>
+                       )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    <ComparisonRow label="最新价" value={currentPrice.toFixed(3)} compValue={(currentPrice * 1.02).toFixed(3)} prefix="¥" />
-                    <ComparisonRow label="成交额" value={displayData.metricValue.includes('亿') ? displayData.metricValue : '10.5亿'} compValue="6.2亿" isWin />
-                    <ComparisonRow label="溢折率" value="0.12%" compValue="0.04%" isWin />
-                    <ComparisonRow label="资金净流入" value="+1.2亿" compValue="+0.4亿" isWin />
-                    <ComparisonRow label="盘中涨幅" value={priceChangePct > 0 ? `+${priceChangePct.toFixed(2)}%` : `${priceChangePct.toFixed(2)}%`} compValue="+3.1%" isWin />
+                    {/* 1. Volume */}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white border-r border-slate-100">成交额</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-800">
+                         {getCompData(displayData.code)?.volume || (displayData.metricValue.includes('亿') ? displayData.metricValue : '10.5亿')}
+                      </td>
+                      {selectedCompetitors.map(code => (
+                        <td key={code} className="px-4 py-3 text-right font-mono text-slate-600">
+                          {getCompData(code)?.volume || '-'}
+                        </td>
+                      ))}
+                       {selectedCompetitors.length === 0 && <td className="px-4 py-3 text-center text-slate-300">-</td>}
+                    </tr>
+
+                    {/* 2. Latest Price */}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white border-r border-slate-100">最新价</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-800">¥{currentPrice.toFixed(3)}</td>
+                      {selectedCompetitors.map(code => (
+                         <td key={code} className="px-4 py-3 text-right font-mono text-slate-600">
+                            ¥{latestData?.competitors?.[code]?.toFixed(3) || '-'}
+                         </td>
+                      ))}
+                      {selectedCompetitors.length === 0 && <td className="px-4 py-3 text-center text-slate-300">-</td>}
+                    </tr>
+
+                    {/* 3. Premium Rate */}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white border-r border-slate-100">溢折率</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-800">
+                        {getCompData(displayData.code)?.premiumRate || '0.12%'}
+                      </td>
+                      {selectedCompetitors.map(code => (
+                        <td key={code} className="px-4 py-3 text-right font-mono text-slate-600">
+                          {getCompData(code)?.premiumRate || '-'}
+                        </td>
+                      ))}
+                       {selectedCompetitors.length === 0 && <td className="px-4 py-3 text-center text-slate-300">-</td>}
+                    </tr>
+
+                    {/* 4. Net Inflow */}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white border-r border-slate-100">净流入额</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-800">
+                        {getCompData(displayData.code)?.netInflow || '+1.2亿'}
+                      </td>
+                      {selectedCompetitors.map(code => (
+                        <td key={code} className="px-4 py-3 text-right font-mono text-slate-600">
+                          {getCompData(code)?.netInflow || '-'}
+                        </td>
+                      ))}
+                       {selectedCompetitors.length === 0 && <td className="px-4 py-3 text-center text-slate-300">-</td>}
+                    </tr>
+
+                    {/* 5. Product Scale */}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white border-r border-slate-100">产品规模</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-800">
+                        {getCompData(displayData.code)?.scale || '256.5亿'}
+                      </td>
+                      {selectedCompetitors.map(code => (
+                        <td key={code} className="px-4 py-3 text-right font-mono text-slate-600">
+                          {getCompData(code)?.scale || '-'}
+                        </td>
+                      ))}
+                       {selectedCompetitors.length === 0 && <td className="px-4 py-3 text-center text-slate-300">-</td>}
+                    </tr>
+
+                    {/* 6. Market Share */}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white border-r border-slate-100">市场份额占比</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-800">
+                        {getCompData(displayData.code)?.marketShare || '42.5%'}
+                      </td>
+                      {selectedCompetitors.map(code => (
+                        <td key={code} className="px-4 py-3 text-right font-mono text-slate-600">
+                          {getCompData(code)?.marketShare || '-'}
+                        </td>
+                      ))}
+                       {selectedCompetitors.length === 0 && <td className="px-4 py-3 text-center text-slate-300">-</td>}
+                    </tr>
+
+                    {/* 7. 1M Return */}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white border-r border-slate-100">近1月收益率</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-800">
+                        {getCompData(displayData.code)?.change1M || '+5.2%'}
+                      </td>
+                      {selectedCompetitors.map(code => (
+                        <td key={code} className="px-4 py-3 text-right font-mono text-slate-600">
+                          {getCompData(code)?.change1M || '-'}
+                        </td>
+                      ))}
+                       {selectedCompetitors.length === 0 && <td className="px-4 py-3 text-center text-slate-300">-</td>}
+                    </tr>
+
+                    {/* 8. 1M Inflow */}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600 font-medium sticky left-0 bg-white border-r border-slate-100">近1月净流入</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-800">
+                        {getCompData(displayData.code)?.inflow1M || '+15.6亿'}
+                      </td>
+                      {selectedCompetitors.map(code => (
+                        <td key={code} className="px-4 py-3 text-right font-mono text-slate-600">
+                          {getCompData(code)?.inflow1M || '-'}
+                        </td>
+                      ))}
+                       {selectedCompetitors.length === 0 && <td className="px-4 py-3 text-center text-slate-300">-</td>}
+                    </tr>
+
                   </tbody>
                 </table>
              </div>
@@ -503,19 +684,49 @@ const Analysis: React.FC = () => {
            </div>
         </div>
       </div>
+
+      {/* Bottom Section: Hotspot News (Split into News/Alerts & Announcements/Reports) */}
+      <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm h-full">
+        <div className="grid grid-cols-2 gap-8">
+          
+          {/* Left Column: News & Alerts */}
+          <div>
+             <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                <h2 className="text-base font-bold text-slate-700">资讯、提醒</h2>
+                <MoreHorizontal className="w-4 h-4 text-slate-400 cursor-pointer" />
+             </div>
+             <div className="space-y-2 h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                {newsList.map(item => (
+                  <div key={item.id} className="flex items-start gap-2 text-sm group cursor-pointer hover:bg-slate-50 p-1 rounded">
+                     <span className="text-slate-400 font-mono whitespace-nowrap text-xs pt-0.5 min-w-[36px]">{item.date}</span>
+                     <span className="text-slate-500 font-medium text-xs border border-slate-200 px-1 rounded whitespace-nowrap scale-90 origin-left">[{item.tag}]</span>
+                     <span className="text-slate-700 group-hover:text-brand line-clamp-1 flex-1" title={item.title}>{item.title}</span>
+                  </div>
+                ))}
+             </div>
+          </div>
+
+          {/* Right Column: Announcements & Reports */}
+          <div>
+             <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                <h2 className="text-base font-bold text-slate-700">公告、研报</h2>
+                <MoreHorizontal className="w-4 h-4 text-slate-400 cursor-pointer" />
+             </div>
+             <div className="space-y-2 h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                {announcementList.map(item => (
+                  <div key={item.id} className="flex items-start gap-2 text-sm group cursor-pointer hover:bg-slate-50 p-1 rounded">
+                     <span className="text-slate-400 font-mono whitespace-nowrap text-xs pt-0.5 min-w-[36px]">{item.date}</span>
+                     <span className="text-slate-500 font-medium text-xs border border-slate-200 px-1 rounded whitespace-nowrap scale-90 origin-left">[{item.tag}]</span>
+                     <span className="text-slate-700 group-hover:text-brand line-clamp-1 flex-1" title={item.title}>{item.title}</span>
+                  </div>
+                ))}
+             </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 };
-
-const ComparisonRow: React.FC<{ label: string, value: string, compValue: string, isWin?: boolean, prefix?: string }> = ({ label, value, compValue, isWin, prefix = '' }) => (
-  <tr>
-    <td className="px-4 py-3 text-slate-600 font-medium">{label}</td>
-    <td className="px-4 py-3 text-right font-mono font-bold text-slate-800 relative">
-      {prefix}{value}
-      {isWin && <div className="absolute top-1 right-0 -mr-1 w-2 h-2 bg-red-500 rounded-full"></div>}
-    </td>
-    <td className="px-4 py-3 text-right font-mono text-slate-400">{prefix}{compValue}</td>
-  </tr>
-);
 
 export default Analysis;

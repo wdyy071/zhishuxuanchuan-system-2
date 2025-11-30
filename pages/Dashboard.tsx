@@ -603,9 +603,7 @@ const HotspotCard: React.FC<{
   return (
     <div 
       onClick={onClick}
-      className={`w-full bg-white rounded-xl border shadow-sm p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md group ${
-        data.status === 'PENDING' ? 'border-l-4 border-l-red-500' : 'border-slate-200'
-      }`}
+      className="w-full bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md group relative"
     >
       {/* Header: One Line */}
       <div className="flex justify-between items-center mb-2">
@@ -614,6 +612,10 @@ const HotspotCard: React.FC<{
            <h3 className="text-base font-bold text-slate-800 flex items-center gap-1 group-hover:text-brand transition-colors">
               {data.name} 
               <span className="text-sm font-normal text-slate-400">({data.code})</span>
+              {/* Notification Dot next to name/code */}
+              {data.status === 'PENDING' && (
+                <span className="w-2 h-2 bg-red-500 rounded-full ml-1 animate-pulse"></span>
+              )}
            </h3>
            {data.status === 'PROCESSING' && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">已处理</span>}
         </div>

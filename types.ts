@@ -74,6 +74,14 @@ export interface NewsItem {
   views: number;
 }
 
+// New interface for compact list items
+export interface InfoItem {
+  id: string;
+  date: string;
+  tag: string;
+  title: string;
+}
+
 export interface CompetitorData {
   name: string;
   code: string;
@@ -81,13 +89,18 @@ export interface CompetitorData {
   volume: string;
   premiumRate: string;
   netInflow: string;
-  isLeader: boolean; // Is our product leading?
+  scale: string;       // 产品规模 (New)
+  marketShare: string; // 市场份额占比 (New)
+  change1M: string;    // 近1月收益率 (New)
+  inflow1M: string;    // 近1月净流入 (New)
+  isLeader: boolean;   // Is our product leading?
 }
 
 export interface ChartPoint {
   time: string;
   value: number;
-  competitorValue?: number;
+  iopv: number; // Reference Net Value
+  competitors: Record<string, number>; // Map of competitor code to value
   isTrigger?: boolean;
   volume: number;
 }
