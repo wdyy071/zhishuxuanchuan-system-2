@@ -546,7 +546,6 @@ export const generateChartData = (competitors: CompetitorData[] = []): ChartPoin
   // Find self
   const selfProduct = competitors.find(c => c.isLeader) || competitors[0] || { currentPrice: 1.0 };
   let value = selfProduct.currentPrice || 1.338;
-  let iopv = value * 0.998; // Slightly different
   
   // Initialize mock values for each competitor based on their current price
   const compValues: Record<string, number> = {};
@@ -566,10 +565,15 @@ export const generateChartData = (competitors: CompetitorData[] = []): ChartPoin
     const m = d.getMinutes().toString().padStart(2, '0');
     const timeStr = `${h}:${m}`;
     
-    // Random walk for self
-    value = value * (1 + (Math.random() - 0.45) * 0.003);
-    // Random walk for IOPV
-    iopv = iopv * (1 + (Math.random() - 0.45) * 0.003);
+    // Random walk for self (Price)
+    // Slightly increased volatility for better demo
+    value = value * (1 + (Math.random() - 0.45) * 0.004);
+    
+    // Calculate IOPV based on Price with a small random spread/noise
+    // IOPV should tightly track Price (Arbitrage mechanics)
+    // Spread e.g. -0.1% to +0.1%
+    const spreadNoise = (Math.random() - 0.5) * 0.002; 
+    const iopv = value * (1 + spreadNoise);
     
     // Random walk for competitors
     const currentCompValues: Record<string, number> = {};
@@ -598,8 +602,11 @@ export const generateChartData = (competitors: CompetitorData[] = []): ChartPoin
     const m = d.getMinutes().toString().padStart(2, '0');
     const timeStr = `${h}:${m}`;
     
-    value = value * (1 + (Math.random() - 0.45) * 0.003);
-    iopv = iopv * (1 + (Math.random() - 0.45) * 0.003);
+    value = value * (1 + (Math.random() - 0.45) * 0.004);
+    
+    // Calculate IOPV based on Price (tight tracking)
+    const spreadNoise = (Math.random() - 0.5) * 0.002;
+    const iopv = value * (1 + spreadNoise);
 
     const currentCompValues: Record<string, number> = {};
     Object.keys(compValues).forEach(code => {

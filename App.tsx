@@ -6,6 +6,7 @@ import Analysis from './pages/Analysis';
 import Workbench from './pages/Workbench';
 import ConfigCenter from './pages/ConfigCenter';
 import ConfigDetail from './pages/ConfigDetail';
+import CopyList from './pages/CopyList';
 
 // Component to handle scroll restoration on route change
 const ScrollToTop = () => {
@@ -34,6 +35,7 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/analysis/:id" element={<Analysis />} />
+              <Route path="/copy-list" element={<CopyList />} />
               <Route path="/workbench" element={<Workbench />} />
               <Route path="/config" element={<ConfigCenter />} />
               <Route path="/config-detail" element={<ConfigDetail />} />

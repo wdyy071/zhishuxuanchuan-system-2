@@ -7,8 +7,8 @@ const Sidebar: React.FC = () => {
   
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: '热点看板' },
-    // Removed Detail Analysis as requested
-    { to: '/workbench', icon: PenTool, label: '文案编辑' },
+    // Points to the new Copy List page instead of direct editor
+    { to: '/copy-list', icon: PenTool, label: '文案编辑' },
     { to: '/config', icon: Settings, label: '配置中心' },
   ];
 
@@ -16,6 +16,10 @@ const Sidebar: React.FC = () => {
   const isItemActive = (to: string) => {
     if (to === '/') {
       return location.pathname === '/' || location.pathname.startsWith('/analysis');
+    }
+    if (to === '/copy-list') {
+      // Highlight "Copy Editing" when on list page OR inside the workbench editor
+      return location.pathname.startsWith('/copy-list') || location.pathname.startsWith('/workbench');
     }
     return location.pathname.startsWith(to);
   };
@@ -36,9 +40,9 @@ const Sidebar: React.FC = () => {
             <NavLink
               key={item.to}
               to={item.to}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors font-medium text-sm ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-sm transition-colors font-medium text-sm ${
                 active
-                  ? 'bg-brand text-white shadow-md shadow-brand/20'
+                  ? 'bg-brand text-white shadow-sm shadow-brand/10'
                   : 'text-slate-600 hover:bg-brand-light hover:text-brand'
               }`}
             >
@@ -50,7 +54,7 @@ const Sidebar: React.FC = () => {
       </nav>
 
       <div className="p-4 border-t border-slate-100">
-        <div className="bg-brand-light rounded-lg p-3">
+        <div className="bg-brand-light rounded-sm p-3 border border-brand/10">
           <p className="text-[10px] text-brand-dark font-semibold mb-1">系统状态</p>
           <div className="flex items-center gap-2 text-[10px] text-slate-600">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>

@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Grid, List, TrendingUp, TrendingDown, ArrowRight, Eye, Filter, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Grid, List, TrendingUp, TrendingDown, Filter, Search, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { MOCK_HOTSPOTS, getMockPanoramaData } from '../constants';
 import { HotspotEvent, PanoramaData } from '../types';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
@@ -45,7 +44,6 @@ const Dashboard: React.FC = () => {
   };
 
   const scrollToToolbar = () => {
-    // Use a small timeout to ensure state updates trigger render first if needed
     setTimeout(() => {
       toolbarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
@@ -54,11 +52,9 @@ const Dashboard: React.FC = () => {
   const handleViewSwitch = (mode: 'HOTSPOT' | 'PANORAMA') => {
     setViewMode(mode);
     if (mode === 'PANORAMA') {
-      // Panorama Mode Default: Lock to Self Select = YES, Status = ALL
       setFilterSelfSelect('YES');
       setFilterStatus('ALL'); 
     } else {
-      // Hotspot Mode Default: Usually Pending
       setFilterStatus('PENDING');
       setFilterSelfSelect('ALL');
     }
@@ -69,19 +65,19 @@ const Dashboard: React.FC = () => {
       setFilterSelfSelect('ALL');
     } else {
       setFilterSelfSelect('YES');
-      setFilterStatus('ALL'); // Mutually exclusive: Reset Status
+      setFilterStatus('ALL');
       scrollToToolbar();
     }
   };
 
   const handlePendingClick = () => {
-    if (viewMode === 'PANORAMA') return; // Not supported in Panorama
+    if (viewMode === 'PANORAMA') return; 
 
     if (filterStatus === 'PENDING') {
       setFilterStatus('ALL');
     } else {
       setFilterStatus('PENDING');
-      setFilterSelfSelect('ALL'); // Mutually exclusive: Reset Self Select to show ALL (both watched and non-watched)
+      setFilterSelfSelect('ALL');
       scrollToToolbar();
     }
   };
@@ -89,7 +85,6 @@ const Dashboard: React.FC = () => {
   const pendingCount = MOCK_HOTSPOTS.filter(h => h.status === 'PENDING').length;
   const selfSelectCount = MOCK_HOTSPOTS.filter(h => h.isSelfSelect).length;
 
-  // Filter Logic for Hotspot Mode
   const filteredHotspots = MOCK_HOTSPOTS.filter(h => {
     if (filterCode && !h.code.includes(filterCode) && !h.name.includes(filterCode)) return false;
     if (filterSelfSelect === 'YES' && !h.isSelfSelect) return false;
@@ -97,14 +92,12 @@ const Dashboard: React.FC = () => {
     return true;
   }).sort((a, b) => b.time.localeCompare(a.time));
 
-  // Filter Logic for Panorama Mode (Simple search for now)
   const filteredPanorama = panoramaData.filter(p => {
     if (filterCode && !p.code.includes(filterCode) && !p.name.includes(filterCode)) return false;
     if (filterSelfSelect === 'YES' && !p.isSelfSelect) return false;
     return true;
   });
 
-  // Generate Self-Selected Trend Data (Top 4 unique products)
   const selfSelectedTrends = MOCK_HOTSPOTS
     .filter(h => h.isSelfSelect)
     .reduce((acc, current) => {
@@ -115,7 +108,6 @@ const Dashboard: React.FC = () => {
     }, [] as HotspotEvent[])
     .slice(0, 4)
     .map((h, index) => {
-       // Mock price data generation
        const isPositive = index % 3 !== 2;
        const changePercent = isPositive ? +(Math.random() * 2 + 0.1).toFixed(2) : -(Math.random() * 2 + 0.1).toFixed(2);
        const price = 0.8 + Math.random() * 0.5;
@@ -140,22 +132,20 @@ const Dashboard: React.FC = () => {
        };
     });
 
-  // Helper for rendering percentage cells
   const PctCell = ({ value }: { value: number }) => (
-    <span className={`font-medium ${value > 0 ? 'text-red-500' : value < 0 ? 'text-green-500' : 'text-slate-500'}`}>
+    <span className={`font-mono tabular-nums font-medium ${value > 0 ? 'text-red-600' : value < 0 ? 'text-green-600' : 'text-slate-400'}`}>
       {value > 0 ? '+' : ''}{value.toFixed(2)}%
     </span>
   );
 
-  // Helper for rendering number cells
   const NumCell = ({ value, suffix = '', colorize = false }: { value: number, suffix?: string, colorize?: boolean }) => (
-    <span className={`font-mono ${colorize ? (value > 0 ? 'text-red-500' : value < 0 ? 'text-green-500' : 'text-slate-500') : 'text-slate-700'}`}>
+    <span className={`font-mono tabular-nums ${colorize ? (value > 0 ? 'text-red-600' : value < 0 ? 'text-green-600' : 'text-slate-400') : 'text-slate-700'}`}>
       {colorize && value > 0 ? '+' : ''}{value.toFixed(2)}{suffix}
     </span>
   );
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative font-sans">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
       {/* 1. Self-Selected Product Trends */}
@@ -164,18 +154,18 @@ const Dashboard: React.FC = () => {
           <div 
             key={product.code} 
             onClick={() => handleCardClick(product.id)}
-            className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all hover:-translate-y-1"
+            className="bg-white p-4 rounded-sm border border-slate-300 cursor-pointer hover:border-brand transition-all"
           >
             <div className="flex justify-between items-start mb-2">
               <div>
-                <h3 className="text-sm text-slate-500 font-medium flex items-center gap-2 group-hover:text-brand">
+                <h3 className="text-sm text-slate-600 font-bold flex items-center gap-2 group-hover:text-brand">
                   {product.name}
-                  <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 font-mono">{product.code}</span>
+                  <span className="text-xs bg-slate-100 px-1 rounded-sm text-slate-500 font-mono">{product.code}</span>
                 </h3>
-                <div className={`text-xl font-bold mt-1 ${product.change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                <div className={`text-xl font-mono font-bold mt-1 tabular-nums ${product.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                   {product.value.toFixed(3)}
                 </div>
-                <div className={`text-xs flex items-center gap-1 ${product.change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                <div className={`text-xs flex items-center gap-1 tabular-nums font-medium ${product.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                   {product.change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                   {product.change > 0 ? '+' : ''}{product.change.toFixed(3)} ({product.change > 0 ? '+' : ''}{product.changePercent}%)
                 </div>
@@ -185,14 +175,14 @@ const Dashboard: React.FC = () => {
                   <AreaChart data={product.data}>
                     <defs>
                       <linearGradient id={`grad${product.code}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={product.change >= 0 ? "#ef4444" : "#22c55e"} stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor={product.change >= 0 ? "#ef4444" : "#22c55e"} stopOpacity={0}/>
+                        <stop offset="5%" stopColor={product.change >= 0 ? "#dc2626" : "#16a34a"} stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor={product.change >= 0 ? "#dc2626" : "#16a34a"} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <Area 
                       type="monotone" 
                       dataKey="value" 
-                      stroke={product.change >= 0 ? "#ef4444" : "#22c55e"} 
+                      stroke={product.change >= 0 ? "#dc2626" : "#16a34a"} 
                       fill={`url(#grad${product.code})`} 
                       strokeWidth={1.5}
                       isAnimationActive={false}
@@ -204,14 +194,14 @@ const Dashboard: React.FC = () => {
           </div>
         ))}
         {selfSelectedTrends.length === 0 && (
-           <div className="col-span-full p-4 bg-white rounded-xl border border-slate-100 text-center text-slate-400 text-sm">
+           <div className="col-span-full p-4 bg-white rounded-sm border border-slate-300 text-center text-slate-400 text-sm">
              暂无自选关注产品
            </div>
         )}
       </div>
 
       {/* 2. Task Counters */}
-      <div className="flex gap-6 bg-white px-6 py-4 rounded-xl border border-slate-100 items-center select-none">
+      <div className="flex gap-6 bg-white px-6 py-4 rounded-sm border border-slate-300 items-center select-none">
         <div className="text-base font-bold text-slate-800">今日任务</div>
         <div className="h-8 w-[1px] bg-slate-200"></div>
         
@@ -223,44 +213,43 @@ const Dashboard: React.FC = () => {
           }}
           className="flex items-baseline gap-2 cursor-pointer group hover:opacity-80 transition-opacity"
         >
-          <span className="text-3xl font-bold text-slate-900">{MOCK_HOTSPOTS.length}</span>
-          <span className="text-xs text-slate-400 group-hover:text-slate-600">热点总数</span>
+          <span className="text-3xl font-bold font-mono text-slate-900">{MOCK_HOTSPOTS.length}</span>
+          <span className="text-xs text-slate-500 font-medium">热点总数</span>
         </div>
 
         {/* Self Select */}
         <div 
           onClick={handleSelfSelectClick}
-          className={`flex items-baseline gap-2 cursor-pointer transition-all ${filterSelfSelect === 'YES' ? 'opacity-100 scale-105' : 'opacity-100 hover:opacity-80'}`}
+          className={`flex items-baseline gap-2 cursor-pointer transition-all ${filterSelfSelect === 'YES' ? 'opacity-100' : 'opacity-100 hover:opacity-80'}`}
         >
-          <span className="text-3xl font-bold text-orange-500">{selfSelectCount}</span>
-          <span className={`text-xs ${filterSelfSelect === 'YES' ? 'text-orange-600 font-bold' : 'text-orange-500'}`}>自选关注</span>
+          <span className="text-3xl font-bold font-mono text-orange-600">{selfSelectCount}</span>
+          <span className={`text-xs font-medium ${filterSelfSelect === 'YES' ? 'text-orange-700 font-bold bg-orange-50 px-1 rounded-sm' : 'text-orange-600'}`}>自选关注</span>
         </div>
 
-        {/* Pending - Disabled in Panorama Mode */}
+        {/* Pending */}
         <div 
           onClick={handlePendingClick}
           className={`flex items-baseline gap-2 relative transition-all ${
             viewMode === 'PANORAMA' 
               ? 'opacity-40 cursor-not-allowed grayscale' 
-              : (filterStatus === 'PENDING' ? 'opacity-100 scale-105 cursor-pointer' : 'opacity-100 hover:opacity-80 cursor-pointer')
+              : (filterStatus === 'PENDING' ? 'opacity-100 cursor-pointer' : 'opacity-100 hover:opacity-80 cursor-pointer')
           }`}
           title={viewMode === 'PANORAMA' ? "全景监控模式下不支持按状态筛选" : ""}
         >
-          <span className="text-3xl font-bold text-red-500">{pendingCount}</span>
-          <span className={`text-xs ${filterStatus === 'PENDING' ? 'text-red-600 font-bold' : 'text-red-500'}`}>待处理</span>
-          {pendingCount > 0 && viewMode !== 'PANORAMA' && <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>}
+          <span className="text-3xl font-bold font-mono text-red-600">{pendingCount}</span>
+          <span className={`text-xs font-medium ${filterStatus === 'PENDING' ? 'text-red-700 font-bold bg-red-50 px-1 rounded-sm' : 'text-red-600'}`}>待处理</span>
         </div>
       </div>
 
       {/* 3. Controls & Sticky Toolbar */}
       <div 
         ref={toolbarRef}
-        className="sticky top-0 z-40 bg-[#f8fbff] py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all duration-300"
+        className="sticky top-0 z-40 bg-[#f8fbff] py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-transparent transition-all"
       >
-        <div className="bg-slate-100 p-1 rounded-lg flex items-center">
+        <div className="bg-slate-200 p-[2px] rounded-sm flex items-center">
           <button 
             onClick={() => handleViewSwitch('HOTSPOT')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+            className={`px-4 py-1.5 rounded-sm text-sm font-bold transition-all flex items-center gap-2 ${
               viewMode === 'HOTSPOT' ? 'bg-white text-brand shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -269,7 +258,7 @@ const Dashboard: React.FC = () => {
           </button>
           <button 
             onClick={() => handleViewSwitch('PANORAMA')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+            className={`px-4 py-1.5 rounded-sm text-sm font-bold transition-all flex items-center gap-2 ${
               viewMode === 'PANORAMA' ? 'bg-white text-brand shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -281,10 +270,10 @@ const Dashboard: React.FC = () => {
         <div className="relative">
           <button 
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-sm text-sm font-bold transition-colors border ${
               isFilterOpen 
                 ? 'bg-brand text-white border-brand' 
-                : 'bg-white text-slate-600 border-slate-200 hover:border-brand hover:text-brand'
+                : 'bg-white text-slate-600 border-slate-300 hover:border-brand hover:text-brand'
             }`}
           >
             <Filter className="w-4 h-4" />
@@ -294,50 +283,49 @@ const Dashboard: React.FC = () => {
 
           {/* Advanced Filter Panel */}
           {isFilterOpen && (
-            <div className="absolute right-0 top-12 w-[800px] max-w-[90vw] bg-white rounded-xl shadow-xl border border-slate-200 p-6 z-50 animate-in slide-in-from-top-2 fade-in">
+            <div className="absolute right-0 top-12 w-[800px] max-w-[90vw] bg-white rounded-sm shadow-xl border border-slate-300 p-6 z-50 animate-in slide-in-from-top-1 fade-in">
               <div className="grid grid-cols-2 gap-x-12 gap-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                 
                 {/* 1. Basic Search */}
                 <div className="col-span-2 space-y-4 pb-4 border-b border-slate-100">
                   <div className="grid grid-cols-3 gap-6">
                     <div className="space-y-2">
-                       <label className="text-sm font-bold text-slate-700">代码查找</label>
+                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">代码查找</label>
                        <div className="relative">
                          <input 
                            type="text" 
                            placeholder="输入代码或名称" 
                            value={filterCode}
                            onChange={(e) => setFilterCode(e.target.value)}
-                           className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand"
+                           className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-sm text-sm focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                          />
-                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2" />
                        </div>
                     </div>
                     <div className="space-y-2">
-                       <label className="text-sm font-bold text-slate-700">是否自选</label>
-                       <div className="flex bg-slate-100 p-1 rounded-lg">
+                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">是否自选</label>
+                       <div className="flex bg-slate-100 p-0.5 rounded-sm">
                           <button 
                             onClick={() => setFilterSelfSelect('ALL')}
-                            className={`flex-1 py-1.5 text-xs font-medium rounded transition-colors ${filterSelfSelect === 'ALL' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 py-1 text-xs font-bold rounded-sm transition-colors ${filterSelfSelect === 'ALL' ? 'bg-white shadow-sm text-slate-800 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                           >全部</button>
                           <button 
                              onClick={() => setFilterSelfSelect('YES')}
-                             className={`flex-1 py-1.5 text-xs font-medium rounded transition-colors ${filterSelfSelect === 'YES' ? 'bg-white shadow text-brand' : 'text-slate-500 hover:text-brand'}`}
+                             className={`flex-1 py-1 text-xs font-bold rounded-sm transition-colors ${filterSelfSelect === 'YES' ? 'bg-white shadow-sm text-brand border border-slate-200' : 'text-slate-500 hover:text-brand'}`}
                           >是</button>
                        </div>
                     </div>
-                    {/* Status Filter: Hidden in Panorama Mode */}
                     {viewMode === 'HOTSPOT' && (
                       <div className="space-y-2">
-                         <label className="text-sm font-bold text-slate-700">状态</label>
-                         <div className="flex bg-slate-100 p-1 rounded-lg">
+                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">状态</label>
+                         <div className="flex bg-slate-100 p-0.5 rounded-sm">
                             <button 
                                onClick={() => setFilterStatus('ALL')}
-                               className={`flex-1 py-1.5 text-xs font-medium rounded transition-colors ${filterStatus === 'ALL' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                               className={`flex-1 py-1 text-xs font-bold rounded-sm transition-colors ${filterStatus === 'ALL' ? 'bg-white shadow-sm text-slate-800 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                             >全部</button>
                             <button 
                                onClick={() => setFilterStatus('PENDING')}
-                               className={`flex-1 py-1.5 text-xs font-medium rounded transition-colors ${filterStatus === 'PENDING' ? 'bg-white shadow text-red-500' : 'text-slate-500 hover:text-red-500'}`}
+                               className={`flex-1 py-1 text-xs font-bold rounded-sm transition-colors ${filterStatus === 'PENDING' ? 'bg-white shadow-sm text-red-600 border border-slate-200' : 'text-slate-500 hover:text-red-600'}`}
                             >待处理</button>
                          </div>
                       </div>
@@ -347,16 +335,16 @@ const Dashboard: React.FC = () => {
 
                 {/* 2. Product Type */}
                 <div className="col-span-2 space-y-3">
-                  <h4 className="font-bold text-slate-800">产品类型</h4>
+                  <h4 className="font-bold text-slate-800 text-sm">产品类型</h4>
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
-                      <div className="flex items-center gap-2 mt-1">
-                        <input type="checkbox" id="stock" className="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" defaultChecked />
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <input type="checkbox" id="stock" className="w-4 h-4 rounded-sm border-slate-300 text-brand focus:ring-brand" defaultChecked />
                         <label htmlFor="stock" className="text-sm font-medium text-slate-700">股票</label>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {['规模指数(宽基)', '风格因子', '行业', '主题', '指数增强'].map(t => (
-                          <button key={t} className="px-3 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded text-xs text-slate-600 transition-colors">
+                          <button key={t} className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded-sm text-xs text-slate-600 transition-colors font-medium">
                             {t}
                           </button>
                         ))}
@@ -365,7 +353,7 @@ const Dashboard: React.FC = () => {
                     <div className="flex gap-6">
                       {['债券', '商品', '货币'].map(t => (
                         <div key={t} className="flex items-center gap-2">
-                          <input type="checkbox" id={t} className="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                          <input type="checkbox" id={t} className="w-4 h-4 rounded-sm border-slate-300 text-brand focus:ring-brand" />
                           <label htmlFor={t} className="text-sm text-slate-600">{t}</label>
                         </div>
                       ))}
@@ -375,40 +363,44 @@ const Dashboard: React.FC = () => {
 
                 {/* 3. Tracking Index */}
                 <div className="space-y-3">
-                   <h4 className="font-bold text-slate-800">跟踪指数</h4>
+                   <h4 className="font-bold text-slate-800 text-sm">跟踪指数</h4>
                    <div className="relative">
-                     <input type="text" placeholder="请输入指数名称/代码" className="w-full pl-3 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand" />
+                     <input type="text" placeholder="请输入指数名称/代码" className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-sm text-sm focus:outline-none focus:border-brand" />
                    </div>
                 </div>
 
                 {/* 4. Scale */}
                 <div className="space-y-4">
                   <div className="space-y-3">
-                    <h4 className="font-bold text-slate-800">产品规模</h4>
+                    <h4 className="font-bold text-slate-800 text-sm">产品规模</h4>
                     <div className="flex items-center gap-2">
-                      <input type="number" placeholder="0" className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm" />
-                      <span className="text-slate-400">亿元</span>
-                      <span className="text-slate-400">-</span>
-                      <input type="number" placeholder="Max" className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm" />
-                      <span className="text-slate-400">亿元</span>
+                      <div className="relative flex-1">
+                        <input type="number" placeholder="0" className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-sm text-sm text-right pr-10 font-mono" />
+                        <span className="absolute right-3 top-1.5 text-xs text-slate-400">亿元</span>
+                      </div>
+                      <span className="text-slate-400 font-bold">-</span>
+                      <div className="relative flex-1">
+                        <input type="number" placeholder="Max" className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-sm text-sm text-right pr-10 font-mono" />
+                        <span className="absolute right-3 top-1.5 text-xs text-slate-400">亿元</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* 5. Change & Volume */}
                 <div className="space-y-3">
-                   <h4 className="font-bold text-slate-800">涨跌幅</h4>
+                   <h4 className="font-bold text-slate-800 text-sm">涨跌幅</h4>
                    <div className="grid grid-cols-2 gap-2">
                       {['上一交易日', '近1周', '近1月', '近3月'].map(t => (
-                        <button key={t} className="px-2 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded text-xs text-slate-600 transition-colors text-center">
+                        <button key={t} className="px-2 py-2 bg-slate-50 hover:bg-brand hover:text-white hover:border-brand border border-slate-200 rounded-sm text-xs text-slate-600 transition-colors text-center font-bold">
                           {t}
                         </button>
                       ))}
                    </div>
-                   <h4 className="font-bold text-slate-800 pt-2">日均成交额</h4>
+                   <h4 className="font-bold text-slate-800 text-sm pt-2">日均成交额</h4>
                    <div className="grid grid-cols-2 gap-2">
                       {['近1周', '近1月'].map(t => (
-                        <button key={t} className="px-2 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded text-xs text-slate-600 transition-colors text-center">
+                        <button key={t} className="px-2 py-2 bg-slate-50 hover:bg-brand hover:text-white hover:border-brand border border-slate-200 rounded-sm text-xs text-slate-600 transition-colors text-center font-bold">
                           {t}
                         </button>
                       ))}
@@ -418,8 +410,8 @@ const Dashboard: React.FC = () => {
                 {/* 6. Constituents */}
                 <div className="space-y-4">
                    <div className="space-y-2">
-                     <h4 className="font-bold text-slate-800">成分股</h4>
-                     <input type="text" placeholder="请输入股票名称/代码" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-brand" />
+                     <h4 className="font-bold text-slate-800 text-sm">成分股</h4>
+                     <input type="text" placeholder="请输入股票名称/代码" className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-sm text-sm focus:outline-none focus:border-brand" />
                    </div>
                 </div>
 
@@ -432,13 +424,13 @@ const Dashboard: React.FC = () => {
                     setFilterSelfSelect('ALL');
                     if (viewMode === 'HOTSPOT') setFilterStatus('ALL');
                   }}
-                  className="px-6 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm"
+                  className="px-6 py-2 text-slate-500 hover:text-slate-700 font-bold text-sm"
                 >
                   重置
                 </button>
                 <button 
                   onClick={() => setIsFilterOpen(false)}
-                  className="px-6 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg font-medium text-sm transition-colors shadow-lg shadow-brand/20"
+                  className="px-6 py-2 bg-brand hover:bg-brand-dark text-white rounded-sm font-bold text-sm transition-colors border border-brand-dark"
                 >
                   确认筛选
                 </button>
@@ -452,12 +444,12 @@ const Dashboard: React.FC = () => {
       {viewMode === 'HOTSPOT' ? (
         loading ? (
           <div className="flex flex-col gap-4">
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-sm" />
+            <Skeleton className="h-24 w-full rounded-sm" />
+            <Skeleton className="h-24 w-full rounded-sm" />
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {filteredHotspots.map((hotspot) => (
               <HotspotCard 
                 key={hotspot.id} 
@@ -479,7 +471,7 @@ const Dashboard: React.FC = () => {
                     setFilterSelfSelect('ALL');
                     setFilterStatus('ALL');
                   }}
-                  className="mt-4 text-brand text-sm hover:underline"
+                  className="mt-4 text-brand text-sm hover:underline font-bold"
                 >
                   重置筛选条件
                 </button>
@@ -488,95 +480,95 @@ const Dashboard: React.FC = () => {
           </div>
         )
       ) : (
-        /* PANORAMA MODE: Comprehensive Data Table */
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        /* PANORAMA MODE */
+        <div className="bg-white rounded-sm border border-slate-300 overflow-hidden shadow-none">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-              <thead className="bg-slate-50 text-slate-500 font-medium">
+              <thead className="bg-[#f0f4f8] text-slate-600 font-bold border-b border-slate-300">
                 <tr>
-                  <th className="px-4 py-4 sticky left-0 z-20 bg-slate-50 border-r border-slate-200 shadow-sm min-w-[160px]">代码/名称</th>
-                  <th className="px-4 py-4 min-w-[120px]">跟踪指数</th>
-                  <th className="px-4 py-4 min-w-[160px]">触发状态</th>
-                  <th className="px-4 py-4 text-right">最新价</th>
-                  <th className="px-4 py-4 text-right">涨跌幅</th>
-                  <th className="px-4 py-4 text-right">溢价率</th>
-                  <th className="px-4 py-4 text-right">规模(亿)</th>
-                  <th className="px-4 py-4 text-right">成交额(亿)</th>
-                  <th className="px-4 py-4 text-right">换手率</th>
+                  <th className="px-4 py-3 sticky left-0 z-20 bg-[#f0f4f8] border-r border-slate-300 min-w-[160px] shadow-[4px_0_4px_-2px_rgba(0,0,0,0.05)]">代码/名称</th>
+                  <th className="px-4 py-3 min-w-[120px] border-r border-slate-200">跟踪指数</th>
+                  <th className="px-4 py-3 min-w-[160px] border-r border-slate-200">触发状态</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">最新价</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">涨跌幅</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">溢价率</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">规模(亿)</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">成交额(亿)</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">换手率</th>
                   
                   {/* Performance */}
-                  <th className="px-4 py-4 text-right border-l border-slate-100">昨日涨跌</th>
-                  <th className="px-4 py-4 text-right">近1周</th>
-                  <th className="px-4 py-4 text-right">近1月</th>
-                  <th className="px-4 py-4 text-right">近3月</th>
-                  <th className="px-4 py-4 text-right">年初至今</th>
-                  <th className="px-4 py-4 text-right">近1年</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">昨日涨跌</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">近1周</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">近1月</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">近3月</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">年初至今</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">近1年</th>
                   
                   {/* Avg Vol */}
-                  <th className="px-4 py-4 text-right border-l border-slate-100">日均额(1周)</th>
-                  <th className="px-4 py-4 text-right">1月</th>
-                  <th className="px-4 py-4 text-right">3月</th>
-                  <th className="px-4 py-4 text-right">年初至今</th>
-                  <th className="px-4 py-4 text-right">1年</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">日均额(1周)</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">1月</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">3月</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">年初至今</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200">1年</th>
                   
                   {/* Inflow */}
-                  <th className="px-4 py-4 text-right border-l border-slate-100">净流入(昨)</th>
-                  <th className="px-4 py-4 text-right">近1周</th>
-                  <th className="px-4 py-4 text-right">近1月</th>
-                  <th className="px-4 py-4 text-right">近3月</th>
-                  <th className="px-4 py-4 text-right">年初至今</th>
-                  <th className="px-4 py-4 text-right">近1年</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">净流入(昨)</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">近1周</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">近1月</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">近3月</th>
+                  <th className="px-4 py-3 text-right border-r border-slate-200 bg-slate-50/50">年初至今</th>
+                  <th className="px-4 py-3 text-right bg-slate-50/50">近1年</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {filteredPanorama.map((row) => (
-                  <tr key={row.id} className="hover:bg-brand-light/30 transition-colors cursor-pointer group" onClick={() => handleCardClick(row.id)}>
-                    <td className="px-4 py-3 sticky left-0 z-10 bg-white border-r border-slate-200 group-hover:bg-[#eef8ff] transition-colors">
+                  <tr key={row.id} className="hover:bg-brand-light/20 transition-colors cursor-pointer group" onClick={() => handleCardClick(row.id)}>
+                    <td className="px-4 py-2 sticky left-0 z-10 bg-white border-r border-slate-300 group-hover:bg-[#f8fbff] shadow-[4px_0_4px_-2px_rgba(0,0,0,0.05)] transition-colors">
                       <div className="flex items-center gap-2">
                         <div>
-                          <div className="font-bold text-slate-800">{row.name}</div>
+                          <div className="font-bold text-slate-800 text-sm">{row.name}</div>
                           <div className="text-xs text-slate-500 font-mono">{row.code}</div>
                         </div>
-                        {row.isSelfSelect && <Eye className="w-3 h-3 text-orange-400 ml-1" />}
+                        {row.isSelfSelect && <Eye className="w-3 h-3 text-orange-500 ml-1" />}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-600 truncate max-w-[150px]" title={row.trackingIndex}>{row.trackingIndex}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2 text-slate-700 truncate max-w-[150px] border-r border-slate-100" title={row.trackingIndex}>{row.trackingIndex}</td>
+                    <td className="px-4 py-2 border-r border-slate-100">
                       {row.triggerStatus ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600 border border-red-100 truncate max-w-[140px]" title={row.triggerStatus}>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm text-xs font-bold bg-red-50 text-red-700 border border-red-200 truncate max-w-[140px]" title={row.triggerStatus}>
                           {row.triggerStatus}
                         </span>
                       ) : <span className="text-slate-300">-</span>}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-700">{row.price.toFixed(3)}</td>
-                    <td className="px-4 py-3 text-right"><PctCell value={row.changePercent} /></td>
-                    <td className="px-4 py-3 text-right"><PctCell value={row.premiumRate} /></td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-700">{row.scale.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-700">{row.volume.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-700">{row.turnoverRate.toFixed(2)}%</td>
+                    <td className="px-4 py-2 text-right font-mono font-medium text-slate-800 border-r border-slate-100">{row.price.toFixed(3)}</td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><PctCell value={row.changePercent} /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><PctCell value={row.premiumRate} /></td>
+                    <td className="px-4 py-2 text-right font-mono text-slate-600 border-r border-slate-100">{row.scale.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-slate-600 border-r border-slate-100">{row.volume.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right font-mono text-slate-600 border-r border-slate-100">{row.turnoverRate.toFixed(2)}%</td>
                     
                     {/* Performance */}
-                    <td className="px-4 py-3 text-right border-l border-slate-100"><PctCell value={row.changePrevDay} /></td>
-                    <td className="px-4 py-3 text-right"><PctCell value={row.change1W} /></td>
-                    <td className="px-4 py-3 text-right"><PctCell value={row.change1M} /></td>
-                    <td className="px-4 py-3 text-right"><PctCell value={row.change3M} /></td>
-                    <td className="px-4 py-3 text-right"><PctCell value={row.changeYTD} /></td>
-                    <td className="px-4 py-3 text-right"><PctCell value={row.change1Y} /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><PctCell value={row.changePrevDay} /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><PctCell value={row.change1W} /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><PctCell value={row.change1M} /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><PctCell value={row.change3M} /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><PctCell value={row.changeYTD} /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><PctCell value={row.change1Y} /></td>
                     
                     {/* Avg Vol */}
-                    <td className="px-4 py-3 text-right border-l border-slate-100 font-mono text-slate-600">{row.avgVol1W.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-600">{row.avgVol1M.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-600">{row.avgVol3M.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-600">{row.avgVolYTD.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-600">{row.avgVol1Y.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100 font-mono text-slate-600">{row.avgVol1W.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100 font-mono text-slate-600">{row.avgVol1M.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100 font-mono text-slate-600">{row.avgVol3M.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100 font-mono text-slate-600">{row.avgVolYTD.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100 font-mono text-slate-600">{row.avgVol1Y.toFixed(2)}</td>
                     
                     {/* Inflow */}
-                    <td className="px-4 py-3 text-right border-l border-slate-100"><NumCell value={row.inflowPrevDay} colorize /></td>
-                    <td className="px-4 py-3 text-right"><NumCell value={row.inflow1W} colorize /></td>
-                    <td className="px-4 py-3 text-right"><NumCell value={row.inflow1M} colorize /></td>
-                    <td className="px-4 py-3 text-right"><NumCell value={row.inflow3M} colorize /></td>
-                    <td className="px-4 py-3 text-right"><NumCell value={row.inflowYTD} colorize /></td>
-                    <td className="px-4 py-3 text-right"><NumCell value={row.inflow1Y} colorize /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><NumCell value={row.inflowPrevDay} colorize /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><NumCell value={row.inflow1W} colorize /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><NumCell value={row.inflow1M} colorize /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><NumCell value={row.inflow3M} colorize /></td>
+                    <td className="px-4 py-2 text-right border-r border-slate-100"><NumCell value={row.inflowYTD} colorize /></td>
+                    <td className="px-4 py-2 text-right"><NumCell value={row.inflow1Y} colorize /></td>
                   </tr>
                 ))}
               </tbody>
@@ -603,48 +595,47 @@ const HotspotCard: React.FC<{
   return (
     <div 
       onClick={onClick}
-      className="w-full bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md group relative"
+      className="w-full bg-white rounded-sm border border-slate-300 p-4 cursor-pointer transition-all hover:border-brand group relative"
     >
-      {/* Header: One Line */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-3">
-           <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-mono font-bold">{data.time}</span>
+           <span className="bg-[#eef6ff] text-brand-dark text-xs px-1.5 py-0.5 rounded-sm font-mono font-bold">{data.time}</span>
            <h3 className="text-base font-bold text-slate-800 flex items-center gap-1 group-hover:text-brand transition-colors">
               {data.name} 
-              <span className="text-sm font-normal text-slate-400">({data.code})</span>
-              {/* Notification Dot next to name/code */}
+              <span className="text-sm font-normal text-slate-400 font-mono">({data.code})</span>
               {data.status === 'PENDING' && (
-                <span className="w-2 h-2 bg-red-500 rounded-full ml-1 animate-pulse"></span>
+                <span className="w-2 h-2 bg-red-600 rounded-full ml-1"></span>
               )}
            </h3>
-           {data.status === 'PROCESSING' && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">已处理</span>}
+           {data.status === 'PROCESSING' && <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-sm font-bold">已处理</span>}
         </div>
-        {data.isSelfSelect && <Eye className="w-4 h-4 text-orange-400" />}
+        {data.isSelfSelect && <Eye className="w-4 h-4 text-orange-500" />}
       </div>
 
-      {/* Main Trigger Info: Compact */}
-      <div className="bg-brand-light/50 rounded-lg px-3 py-2 mb-2 flex justify-between items-center">
-        <span className="text-xs text-brand-dark font-medium">{data.triggerReason}</span>
-        <span className="text-lg font-bold text-brand">{data.metricValue}</span>
+      {/* Main Trigger Info */}
+      <div className="bg-[#f0f9ff] border border-blue-100 rounded-sm px-3 py-2 mb-2 flex justify-between items-center">
+        <span className="text-xs text-slate-600 font-bold">{data.triggerReason}</span>
+        <span className="text-lg font-bold font-mono text-brand tabular-nums">{data.metricValue}</span>
       </div>
 
-      {/* Attribution / Description - Truncated to one line */}
+      {/* Description */}
       <p className="text-sm text-slate-600 leading-relaxed truncate">
         {data.description}
       </p>
 
-      {/* Actions: Collapsible (Slide Down on Hover) */}
-      <div className="max-h-0 overflow-hidden group-hover:max-h-20 transition-[max-height] duration-300 ease-in-out">
+      {/* Actions */}
+      <div className="max-h-0 overflow-hidden group-hover:max-h-20 transition-[max-height] duration-200 ease-in-out">
         <div className="flex gap-2 pt-3 mt-2 border-t border-slate-100">
           <button 
             onClick={onCreate}
-            className="flex-1 bg-brand hover:bg-brand-dark text-white text-sm py-2 rounded-lg font-medium transition-colors"
+            className="flex-1 bg-brand hover:bg-brand-dark text-white text-sm py-1.5 rounded-sm font-bold transition-colors"
           >
             去编辑
           </button>
           <button 
             onClick={onIgnore}
-            className="px-4 py-2 border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors"
+            className="px-4 py-1.5 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-sm text-sm font-bold transition-colors"
           >
             忽略此条消息
           </button>
