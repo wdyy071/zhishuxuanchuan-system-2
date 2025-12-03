@@ -104,3 +104,13 @@ export interface ChartPoint {
   isTrigger?: boolean;
   volume: number;
 }
+
+export interface CopyItem {
+  id: number;
+  title: string;
+  product: string; // e.g. "半导体ETF (512480)"
+  status: 'DRAFT' | 'PUBLISHED';
+  updatedAt: string;
+  preview: string;
+  content: string; // Full content
+}

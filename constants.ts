@@ -1,6 +1,4 @@
-
-
-import { HotspotEvent, HotspotStatus, MarketIndex, NewsItem, CompetitorData, ChartPoint, PanoramaData, InfoItem } from './types';
+import { HotspotEvent, HotspotStatus, MarketIndex, NewsItem, CompetitorData, ChartPoint, PanoramaData, InfoItem, CopyItem } from './types';
 
 export const MOCK_INDICES: MarketIndex[] = [
   { 
@@ -540,7 +538,7 @@ export const getCompetitorsForProduct = (code: string): CompetitorData[] => {
     }));
 };
 
-export const generateChartData = (competitors: CompetitorData[] = []): ChartPoint[] => {
+export const generateChartData = (competitors: CompetitorData[] = [], triggerTime: string = '10:42'): ChartPoint[] => {
   const points: ChartPoint[] = [];
   
   // Find self
@@ -589,7 +587,7 @@ export const generateChartData = (competitors: CompetitorData[] = []): ChartPoin
       value: Number(value.toFixed(3)),
       iopv: Number(iopv.toFixed(3)),
       competitors: currentCompValues,
-      isTrigger: timeStr === '10:42',
+      isTrigger: timeStr === triggerTime,
       volume
     });
   }
@@ -621,7 +619,7 @@ export const generateChartData = (competitors: CompetitorData[] = []): ChartPoin
       value: Number(value.toFixed(3)),
       iopv: Number(iopv.toFixed(3)),
       competitors: currentCompValues,
-      isTrigger: false,
+      isTrigger: timeStr === triggerTime,
       volume
     });
   }
@@ -778,4 +776,47 @@ export const getMockPanoramaData = (): PanoramaData[] => {
     if (!a.triggerStatus && b.triggerStatus) return 1;
     return 0;
   });
+};
+
+export const MOCK_COPIES: CopyItem[] = [
+  {
+    id: 1,
+    title: '半导体ETF午盘速递：大基金利好引爆行情',
+    product: '半导体ETF (512480)',
+    status: 'DRAFT',
+    updatedAt: '2023-11-28 11:45',
+    preview: '受大基金三期落地消息刺激，今日半导体产业链表现强势。截至10:42，半导体ETF(512480)盘中成交额已突破10亿元...',
+    content: `【盘中异动】半导体板块全线爆发，ETF成交破10亿！🚀\n\n受大基金三期落地消息刺激，今日半导体产业链表现强势。截至10:42，半导体ETF(512480)盘中成交额已突破10亿元，交投十分活跃！📈\n\n资金面上，主力资金持续抢筹，盘中净流入超1.2亿元，显著优于同类产品。目前板块估值仍处于历史低位，配置性价比凸显。\n\n关注半导体ETF(512480)，一键布局硬核科技！💪`
+  },
+  {
+    id: 2,
+    title: '收盘点评：酒ETF逆势流入，机构左侧布局？',
+    product: '酒ETF (512690)',
+    status: 'PUBLISHED',
+    updatedAt: '2023-11-27 15:30',
+    preview: '盘中价格下跌超1%，但资金逆势大幅买入，流入强度达1.5%，显示机构左侧布局意愿强烈。建议投资者关注...',
+    content: `【收盘点评】酒ETF(512690)逆势收红，资金借道抄底！🍷\n\n今日大盘调整，但酒ETF(512690)尾盘逆势翻红。数据显示，盘中资金呈净流入态势，全天净流入额超5000万元。从基本面看，白酒板块库存去化顺利，年底旺季将至，估值修复可期。`
+  },
+  {
+    id: 3,
+    title: '科创50早报：纳指新高带动科技情绪',
+    product: '科创50ETF (588000)',
+    status: 'PUBLISHED',
+    updatedAt: '2023-11-27 09:15',
+    preview: '隔夜美股纳指创新高，映射A股科技板块情绪回暖。科创50ETF开盘微涨，关注半导体设备方向...',
+    content: `【早盘速递】科创50ETF(588000)高开，科技成长风格回归？\n\n隔夜美股纳指再创新高，提振全球科技股情绪。今日科创50指数高开，半导体、软件板块领涨。作为硬科技旗舰指数，科创50ETF(588000)具备高弹性特征，是反弹急先锋。`
+  },
+  {
+    id: 14,
+    title: '证券ETF异动提醒：成交放量，行情启动？',
+    product: '证券ETF (512880)',
+    status: 'DRAFT',
+    updatedAt: '2023-11-29 14:00',
+    preview: '证券板块午后异动，成交额显著放大。证券ETF(512880)量比达2.5倍，市场博弈政策预期...',
+    content: `【异动提醒】证券ETF(512880)成交放量，牛市旗手归来？🐂\n\n午后证券板块快速拉升，证券ETF(512880)成交额突破20亿元，量比高达2.5倍！市场对于资本市场改革政策预期升温，券商板块作为高贝塔品种，有望率先受益。`
+  }
+];
+
+export const getCopyById = (id: number | string): CopyItem | undefined => {
+  return MOCK_COPIES.find(c => c.id.toString() === id.toString());
 };
